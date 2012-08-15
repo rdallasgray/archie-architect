@@ -1,14 +1,14 @@
 root = (exports ? this)
 
 class Architect
-  DEFAULT_HEIGHT_SDU: 4.5
-  RADIUS: 350
-  MIN_SCALING_DISTANCE: 50
-  DISTANCE_SCALE_LOG: 1.5
+  DEFAULT_HEIGHT_SDU: 2.5
+  RADIUS: 300
+  MIN_SCALING_DISTANCE: 30
+  DISTANCE_SCALE_LOG: 1.7
   MIN_SCALING_FACTOR: 0.1
-  OFFSET_Y_RANDOM_FACTOR: 5
+  OFFSET_Y_RANDOM_FACTOR: 2
   REQUEST_INTERVAL: 50
-  LOG_LEVEL: 1
+  LOG_LEVEL: 2
 
   constructor: (canmoreRequestUrl) ->
     @lastLocation = new AR.GeoLocation(0, 0, 0)
@@ -34,7 +34,7 @@ class Architect
     report = @requestBuffer.shift()
     if report == undefined
       return
-    @sendRequest(report)    
+    @sendRequest(report)
 
   sendRequest:(msg) ->
     document.location = "architectsdk://#{msg}"
@@ -62,13 +62,12 @@ class Architect
   setupPhotoMode: ->
     @log "setting up photo mode"
     @locationChangedFunc = null
-    @mode = 'photo'
+    @mode = "photo"
     @disablePlacemarks()
     @enablePhotos()
     if @locationChangeSufficient() || @empty @photoGeoObjects
       @cleanUpPhotos()
       @updatePhotos()
-    @locationChangedFunc = @maybeUpdatePhotos
 
   locationChangeSufficient: ->
     distance = @currentLocation.distanceTo(@lastLocation)
@@ -103,7 +102,7 @@ class Architect
       @log "Object #{id} is #{distance}m away"
       if distance > @RADIUS
         @log "Destroying object #{id}"
-        @destroyGeoObject('photo', id)
+        @destroyGeoObject("photo", id)
       else
         @log "Resetting opacity and scale on object #{id}"
         for drawable in item.drawables.cam
@@ -187,13 +186,13 @@ class Architect
     @log "destroying #{type} geoObjects"
     collection = @["#{type}GeoObjects"]
     geo = collection[id]
-    for drawable in geo.drawables.cam
-      delete @imgResources[drawable.imageResource.uri]
-      drawable.imageResource.destroy()
-      drawable.destroy()
-    for location in geo.locations
-      location.destroy()
+    @log "disabling geoobject"
+    geo.enabled = false
+    @log "removing cam drawables"
+    geo.drawables.cam = []
+    @log "destroying geoobject"
     geo.destroy()
+    @log "deleting object from collection"
     delete collection[id]
 
   createGeoObject: (siteName, location, imgUri, id, collectionName) ->
@@ -224,9 +223,6 @@ class Architect
     @request "clickedObject.aos?id=#{id}&collection=#{collection}"
       
   createImageResource: (uri, geoObject) ->
-    if @imgResources[uri] != undefined
-      geoObject.enabled = true
-      return @imgResources[uri]
     @log "creating imageResource for #{uri}"
     imgRes = new AR.ImageResource uri,
       onError: =>
@@ -235,23 +231,17 @@ class Architect
         unless imgRes.getHeight() is 109 and imgRes.getWidth() is 109
           @log "loaded image #{uri}"
           geoObject.enabled = true
-    @imgResources[uri] = imgRes
     return imgRes
 
   createImageDrawable: (imgRes, options) ->
     new AR.ImageDrawable imgRes, @DEFAULT_HEIGHT_SDU, options
 
   createLabel: (text, options, distance) ->
-    options.offsetY = options.offsetY - 3
+    options.offsetY = options.offsetY - 1.75
     options.style = { backgroundColor: "#ffffff" }
-    label = new AR.Label text, 0.75, options
+    label = new AR.Label text, 0.6, options
     label.origOffsetY = options.offsetY
     label
-
-  serverRequest: (url, params, callback) ->
-    params ||= []
-    requestUrl = @canmoreRequestUrl + url + params.join('/') + '?callback=?'
-    $.getJSON requestUrl, (data) -> callback(data)
 
   empty: (object) ->
     for key, val of object
