@@ -38,6 +38,9 @@ window.AR =
     height: height
     options: options
     destroy: -> @destroyed = true
+    triggers: { onClick: "" }
+  Label: (text, offset, options) ->
+    {}
     
 
 a = null
@@ -45,13 +48,11 @@ a = null
 describe "Canmore.Architect", ->
   beforeEach ->
     a = new Canmore.Architect
+    a.sendRequest = (msg) -> null
 
   it "sets up current and last location", ->
     expect(a.currentLocation.latitude).toEqual 0
     expect(a.lastLocation.longitude).toEqual 0
-
-  it "sets the default canmore url", ->
-    expect(a.canmoreRequestUrl).toBe "/"
     
   it "sets up a GeoLocation", ->
     l = new AR.GeoLocation(10, 20, 30, 5)
@@ -65,7 +66,8 @@ describe "Canmore.Architect", ->
 
   it "creates imageResources", ->
     geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), { test: "test" })
-    res = a.createImageResource(mockDetails.thumb_link, geoObject)
+    a.setMode("placemark")
+    res = a.createImageResource(mockDetails.thumb_link, geoObject, "placemarkGeoObjects")
     expect(res.uri).toBe(mockDetails.thumb_link)
     res.callbacks.onLoaded()
     expect(geoObject.enabled).toBe(true)
@@ -74,53 +76,48 @@ describe "Canmore.Architect", ->
     geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), { test: "test" })    
     res = a.createImageResource(mockDetails.thumb_link, geoObject)
     d = a.createImageDrawable(res, { test: "test"})
-    expect(d.height).toBe(4.5)
+    expect(d.height).toBe(2.5)
   
   it "creates GeoObjects", ->
-    spyOn(a, 'serverRequest').andCallThrough()
     spyOn(a, 'createImageDrawable').andCallThrough()
     spyOn(a, 'createImageResource').andCallThrough()
-    a.createGeoObject(mockRels[0])
-    expect(a.serverRequest).toHaveBeenCalled()
+    a.createGeoObject("test", { lat: 55.8791, long: -4.2787, alt: 0 }, "test.jpg", mockRels[0], "placemarkGeoObjects")
     expect(a.createImageResource).toHaveBeenCalled()
     expect(a.createImageDrawable).toHaveBeenCalled()
-    expect(a.geoObjects[mockRels[0]].drawables.cam[0].imageResource.uri).toBe(mockDetails.thumb_link)
+    expect(a.placemarkGeoObjects[mockRels[0]].drawables.cam[0].imageResource.uri).toBe(mockDetails.thumb_link)
 
   it "destroys GeoObjects", ->
-    a.createGeoObject(mockRels[0])
-    o = a.geoObjects[mockRels[0]]
+    a.createGeoObject("test", { lat: 55.8791, long: -4.2787, alt: 0 }, "test.jpg", mockRels[0], "placemarkGeoObjects")
+    o = a.placemarkGeoObjects[mockRels[0]]
     spyOn(o, 'destroy')
-    spyOn(o.locations[0], 'destroy')
-    spyOn(o.drawables.cam[0], 'destroy')
-    spyOn(o.drawables.cam[0].imageResource, 'destroy')
-    a.destroyGeoObject mockRels[0]
+    a.destroyGeoObject "placemark", mockRels[0]
     expect(o.destroy).toHaveBeenCalled()
-    expect(o.locations[0].destroy).toHaveBeenCalled()
-    expect(o.drawables.cam[0].destroy).toHaveBeenCalled()
-    expect(o.drawables.cam[0].imageResource.destroy).toHaveBeenCalled()
-    expect(a.geoObjects[mockRels[0]]).toBe undefined
+    expect(a.placemarkGeoObjects[mockRels[0]]).toBe undefined
 
   it "sets scale and opacity on drawables", ->
-    geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), { test: "test" })    
-    res = a.createImageResource(mockDetails.thumb_link, geoObject)
-    d = a.createImageDrawable(res, { test: "test"})
+    geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), {})    
+    res = a.createImageResource(mockDetails.thumb_link, geoObject, "placemarkGeoObjects")
+    d = a.createImageDrawable(res, {})
     a.setOpacityAndScaleOnDrawable(d, 1000)
-    expect(d.scale).toEqual(a.MIN_SCALING_DISTANCE / (1000 / a.DISTANCE_SCALE_FACTOR))
-    expect(d.opacity).toEqual(a.MIN_SCALING_DISTANCE / (1000 / a.DISTANCE_SCALE_FACTOR))    
+    expect(d.scale).toEqual(a.scalingFactor 1000)
+    expect(d.opacity).toEqual(a.scalingFactor 1000)    
 
   it "cleans up images", ->
     spyOn(a, 'destroyGeoObject').andCallThrough()
-    a.createGeoObject(mockRels[0])
-    a.cleanUpImages()
+    a.createGeoObject("test", { lat: 55.8791, long: -4.2787, alt: 0 }, "test.jpg", mockRels[0], "photoGeoObjects")
+    a.locationChanged(1, 2, 3, 3)
+    a.cleanUpPhotos()
     expect(a.destroyGeoObject).toHaveBeenCalled()
-    expect(a.geoObjects).toEqual({})
+    expect(a.placemarkGeoObjects).toEqual({})
 
   it "sets the last location on a location change", ->
+    a.setMode("placemark")
+    a.locationChanged(53, -2, 0, 3)
     a.locationChanged(55, -4, 0, 3)
     expect(a.lastLocation.latitude).toEqual(55)
 
   it "updates images on a valid location change", ->
-    spyOn(a, 'updateImages').andCallThrough()
-    a.locationChanged(55, -4, 0, 3)
-    expect(a.updateImages).toHaveBeenCalled()
-    expect(a.geoObjects[mockRels[0]].locations[0].latitude).toEqual(mockDetails.lat)
+    spyOn(a, 'updatePhotos').andCallThrough()
+    a.setMode("photo")
+    a.locationChanged(54, -3, 0, 3)
+    expect(a.updatePhotos).toHaveBeenCalled()
