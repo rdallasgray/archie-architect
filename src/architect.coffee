@@ -8,7 +8,7 @@ class Architect
   MIN_SCALING_FACTOR: 0.1
   OFFSET_Y_RANDOM_FACTOR: 2
   REQUEST_INTERVAL: 50
-  LOG_LEVEL: 2
+  LOG_LEVEL: 1
 
   constructor: (canmoreRequestUrl) ->
     @lastLocation = new AR.GeoLocation(0, 0, 0)
@@ -207,7 +207,7 @@ class Architect
       offsetY: (Math.random() * @OFFSET_Y_RANDOM_FACTOR) - @OFFSET_Y_RANDOM_FACTOR / 2
       enabled: true
     geoObject = new AR.GeoObject location, enabled: false
-    imgRes = @createImageResource(imgUri, geoObject)
+    imgRes = @createImageResource(imgUri, geoObject, collectionName)
     imgDrawable = @createImageDrawable imgRes, drawableOptions
     imgDrawable.origOffsetY = imgDrawable.offsetY
     imgDrawable.triggers.onClick = => @objectWasClicked id, collectionName
@@ -222,15 +222,16 @@ class Architect
     @log "clicked #{id}, #{collection}"
     @request "clickedObject.aos?id=#{id}&collection=#{collection}"
       
-  createImageResource: (uri, geoObject) ->
+  createImageResource: (uri, geoObject, collectionName) ->
     @log "creating imageResource for #{uri}"
+    mode = if collectionName == "placemarkGeoObjects" then "placemark" else  "photo" 
     imgRes = new AR.ImageResource uri,
       onError: =>
         @log "error loading image #{uri}"
       onLoaded: =>
         unless imgRes.getHeight() is 109 and imgRes.getWidth() is 109
-          @log "loaded image #{uri}"
-          geoObject.enabled = true
+          @log "loaded image #{uri}, mode is #{@mode}::#{mode}"
+          geoObject.enabled = (@mode == mode)
     return imgRes
 
   createImageDrawable: (imgRes, options) ->
