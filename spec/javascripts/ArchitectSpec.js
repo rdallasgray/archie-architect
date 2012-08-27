@@ -78,8 +78,14 @@
         options: options,
         destroy: function() {
           return this.destroyed = true;
+        },
+        triggers: {
+          onClick: ""
         }
       };
+    },
+    Label: function(text, offset, options) {
+      return {};
     }
   };
 
@@ -87,14 +93,14 @@
 
   describe("Canmore.Architect", function() {
     beforeEach(function() {
-      return a = new Canmore.Architect;
+      a = new Canmore.Architect;
+      return a.sendRequest = function(msg) {
+        return null;
+      };
     });
     it("sets up current and last location", function() {
       expect(a.currentLocation.latitude).toEqual(0);
       return expect(a.lastLocation.longitude).toEqual(0);
-    });
-    it("sets the default canmore url", function() {
-      return expect(a.canmoreRequestUrl).toBe("/");
     });
     it("sets up a GeoLocation", function() {
       var l;
@@ -113,7 +119,8 @@
       geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), {
         test: "test"
       });
-      res = a.createImageResource(mockDetails.thumb_link, geoObject);
+      a.setMode("placemark");
+      res = a.createImageResource(mockDetails.thumb_link, geoObject, "placemarkGeoObjects");
       expect(res.uri).toBe(mockDetails.thumb_link);
       res.callbacks.onLoaded();
       return expect(geoObject.enabled).toBe(true);
@@ -127,62 +134,65 @@
       d = a.createImageDrawable(res, {
         test: "test"
       });
-      return expect(d.height).toBe(4.5);
+      return expect(d.height).toBe(2.5);
     });
     it("creates GeoObjects", function() {
-      spyOn(a, 'serverRequest').andCallThrough();
       spyOn(a, 'createImageDrawable').andCallThrough();
       spyOn(a, 'createImageResource').andCallThrough();
-      a.createGeoObject(mockRels[0]);
-      expect(a.serverRequest).toHaveBeenCalled();
+      a.createGeoObject("test", {
+        lat: 55.8791,
+        long: -4.2787,
+        alt: 0
+      }, "test.jpg", mockRels[0], "placemarkGeoObjects");
       expect(a.createImageResource).toHaveBeenCalled();
       expect(a.createImageDrawable).toHaveBeenCalled();
-      return expect(a.geoObjects[mockRels[0]].drawables.cam[0].imageResource.uri).toBe(mockDetails.thumb_link);
+      return expect(a.placemarkGeoObjects[mockRels[0]].drawables.cam[0].imageResource.uri).toBe(mockDetails.thumb_link);
     });
     it("destroys GeoObjects", function() {
       var o;
-      a.createGeoObject(mockRels[0]);
-      o = a.geoObjects[mockRels[0]];
+      a.createGeoObject("test", {
+        lat: 55.8791,
+        long: -4.2787,
+        alt: 0
+      }, "test.jpg", mockRels[0], "placemarkGeoObjects");
+      o = a.placemarkGeoObjects[mockRels[0]];
       spyOn(o, 'destroy');
-      spyOn(o.locations[0], 'destroy');
-      spyOn(o.drawables.cam[0], 'destroy');
-      spyOn(o.drawables.cam[0].imageResource, 'destroy');
-      a.destroyGeoObject(mockRels[0]);
+      a.destroyGeoObject("placemark", mockRels[0]);
       expect(o.destroy).toHaveBeenCalled();
-      expect(o.locations[0].destroy).toHaveBeenCalled();
-      expect(o.drawables.cam[0].destroy).toHaveBeenCalled();
-      expect(o.drawables.cam[0].imageResource.destroy).toHaveBeenCalled();
-      return expect(a.geoObjects[mockRels[0]]).toBe(void 0);
+      return expect(a.placemarkGeoObjects[mockRels[0]]).toBe(void 0);
     });
     it("sets scale and opacity on drawables", function() {
       var d, geoObject, res;
-      geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), {
-        test: "test"
-      });
-      res = a.createImageResource(mockDetails.thumb_link, geoObject);
-      d = a.createImageDrawable(res, {
-        test: "test"
-      });
+      geoObject = new AR.GeoObject(new AR.GeoLocation(1, 2, 3, 4), {});
+      res = a.createImageResource(mockDetails.thumb_link, geoObject, "placemarkGeoObjects");
+      d = a.createImageDrawable(res, {});
       a.setOpacityAndScaleOnDrawable(d, 1000);
-      expect(d.scale).toEqual(a.MIN_SCALING_DISTANCE / (1000 / a.DISTANCE_SCALE_FACTOR));
-      return expect(d.opacity).toEqual(a.MIN_SCALING_DISTANCE / (1000 / a.DISTANCE_SCALE_FACTOR));
+      expect(d.scale).toEqual(a.scalingFactor(1000));
+      return expect(d.opacity).toEqual(a.scalingFactor(1000));
     });
     it("cleans up images", function() {
       spyOn(a, 'destroyGeoObject').andCallThrough();
-      a.createGeoObject(mockRels[0]);
-      a.cleanUpImages();
+      a.createGeoObject("test", {
+        lat: 55.8791,
+        long: -4.2787,
+        alt: 0
+      }, "test.jpg", mockRels[0], "photoGeoObjects");
+      a.locationChanged(1, 2, 3, 3);
+      a.cleanUpPhotos();
       expect(a.destroyGeoObject).toHaveBeenCalled();
-      return expect(a.geoObjects).toEqual({});
+      return expect(a.placemarkGeoObjects).toEqual({});
     });
     it("sets the last location on a location change", function() {
+      a.setMode("placemark");
+      a.locationChanged(53, -2, 0, 3);
       a.locationChanged(55, -4, 0, 3);
       return expect(a.lastLocation.latitude).toEqual(55);
     });
     return it("updates images on a valid location change", function() {
-      spyOn(a, 'updateImages').andCallThrough();
-      a.locationChanged(55, -4, 0, 3);
-      expect(a.updateImages).toHaveBeenCalled();
-      return expect(a.geoObjects[mockRels[0]].locations[0].latitude).toEqual(mockDetails.lat);
+      spyOn(a, 'updatePhotos').andCallThrough();
+      a.setMode("photo");
+      a.locationChanged(54, -3, 0, 3);
+      return expect(a.updatePhotos).toHaveBeenCalled();
     });
   });
 

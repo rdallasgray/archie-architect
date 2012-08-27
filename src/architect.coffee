@@ -186,7 +186,7 @@ class Architect
     @log "destroying #{type} geoObjects"
     collection = @["#{type}GeoObjects"]
     geo = collection[id]
-    @log "disabling geoobject"
+    @log "disabling geoObject"
     geo.enabled = false
     @log "removing cam drawables"
     geo.drawables.cam = []
@@ -197,7 +197,7 @@ class Architect
 
   createGeoObject: (siteName, location, imgUri, id, collectionName) ->
     @log "creating geoObject #{id}, #{siteName} in collection #{collectionName}"
-    collection = @[collectionName]
+    collection = @[collectionName] || {}
     if collection[id] != undefined
       @log "object already exists"
       return
@@ -224,7 +224,7 @@ class Architect
       
   createImageResource: (uri, geoObject, collectionName) ->
     @log "creating imageResource for #{uri}"
-    mode = if collectionName == "placemarkGeoObjects" then "placemark" else  "photo" 
+    mode = if collectionName == "placemarkGeoObjects" then "placemark" else "photo" 
     imgRes = new AR.ImageResource uri,
       onError: =>
         @log "error loading image #{uri}"
