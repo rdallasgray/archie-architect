@@ -8,7 +8,7 @@ class Architect
   MIN_SCALING_FACTOR: 0.1
   OFFSET_Y_RANDOM_FACTOR: 2
   REQUEST_INTERVAL: 50
-  LOG_LEVEL: 1
+  LOG_LEVEL: 2
 
   constructor: (canmoreRequestUrl) ->
     @lastLocation = new AR.GeoLocation(0, 0, 0)
